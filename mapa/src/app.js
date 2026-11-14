@@ -415,8 +415,7 @@ function painelRegras(){
 <p><b>Moral.</b> Exércitos desgastados debandam e precisam se reorganizar. Exército cercado, sem região amiga vizinha, pode ser destruído.</p>
 <p><b>Generais.</b> Cada general tem patente, facção e traços de comando. O efeito de cada traço é avaliado pela Sala de Controle.</p>
 <p><b>Águas e aviação.</b> Flotilhas disputam rios e mares e apoiam os exércitos das regiões vizinhas. A aviação é um recurso de apoio.</p>
-<p><b>Apoio à Guerra.</b> Derrotas, regiões perdidas e crises corroem a disposição de lutar. Sem apoio, a guerra está perdida.</p>
-<p class="muted">Os números do adversário e os cálculos de cada batalha são reservados à Sala de Controle.</p>`;
+<p><b>Apoio à Guerra.</b> Derrotas, regiões perdidas e crises corroem a disposição de lutar. Sem apoio, a guerra está perdida.</p>`;
  return `<h2>Regras (Sala de Controle)</h2>
 <p><b>Posturas.</b> Avançar, Defender, Reorganizar ou Transferir. Cada gabinete tem ${S.ofensivas} ofensivas por turno.</p>
 <p><b>Resolução.</b> 2 dados + Força do atacante − Força do defensor + modificadores.</p>
