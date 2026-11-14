@@ -277,12 +277,12 @@ function aoSnap(snap){REM=snap.exists?snap.data():null;
  try{PUB=JSON.parse(REM.pub)}catch(e){}
  SALT=REM.salt;if(!stat.startsWith('Sem permissão'))stat='Sincronizado';
  (async()=>{for(const l of['V','B'])if(chaves[l]){try{SEC[l]=await dec(REM['c'+l],chaves[l])}catch(e){SEC[l]=null}}
-  if(chaves.C&&!meus.has(REM.n)&&!sujo&&!escrevendo){try{const o=await dec(REM.cC,chaves.C);FULL=o.S;chaves.V=o.senhas.V;chaves.B=o.senhas.B}catch(e){}}
+  if(chaves.C&&!meus.has(REM.n)&&!sujo&&!escrevendo){try{const o=await dec(REM.cC,chaves.C);FULL=o.S;chaves.V=o.senhas.V;chaves.B=o.senhas.B}catch(e){chaves={};msgSenha='As senhas deste mapa foram trocadas. Digite a nova.'}}
   atualizar()})()}
 async function destravar(l,senha){if(!REM)return false;
  try{const o=await dec(REM['c'+l],senha);chaves[l]=senha;if(l==='C'){FULL=o.S;chaves.V=o.senhas.V;chaves.B=o.senhas.B}else SEC[l]=o;decOrd();return true}catch(e){return false}}
 async function iniciarMapa(sC,sV,sB){const a=new Uint8Array(16);crypto.getRandomValues(a);SALT=toB(a);chaves={C:sC,V:sV,B:sB};sujo=true;await gravar();decOrd()}
-let FB=null,fbEmail='';
+let FB=null,fbEmail='',esq=false,msgTroca='';
 function ligar(db){
  try{ref=db.doc('mapa/estado')}catch(e){return}
  dbh=db;['V','B'].forEach(l=>{try{db.doc('ordens/'+l).onSnapshot(s=>{REMORD[l]=s.exists?s.data():null;decOrd()},()=>{})}catch(e){}});
@@ -518,7 +518,8 @@ function painelBol(){
  <div class="row"><input id="nota" placeholder="Nota para o boletim" style="flex:1;min-width:120px"><button class="sec" data-a="nota">Publicar</button></div>`;
  h+='<div class="log">'+S.log.map((l,i)=>`<p>${esc(l)}${ctl()?` <a href="#" data-a="rmLog" data-i="${i}" style="color:var(--gold)" title="Apagar esta linha">×</a>`:''}</p>`).join('')+'</div>';
  if(ctl()){h+=`<h3>Cenário</h3><div class="row"><select id="cen">${Object.keys(CEN).map(k=>`<option value="${k}"${k===S.cen?' selected':''}>${esc(CEN[k].nome)}</option>`).join('')}</select><button class="sec" data-a="cen">Carregar</button></div><p class="muted">Carregar um cenário apaga a partida em andamento.</p>`;
-  h+=`<h3>Cópia de segurança</h3><textarea id="cod">${esc(JSON.stringify(S))}</textarea><div class="row"><button class="sec" data-a="copiar">Copiar</button><button class="sec" data-a="carregar">Restaurar código colado</button></div><p class="muted" id="msg"></p>`}
+  h+=`<h3>Cópia de segurança</h3><textarea id="cod">${esc(JSON.stringify(S))}</textarea><div class="row"><button class="sec" data-a="copiar">Copiar</button><button class="sec" data-a="carregar">Restaurar código colado</button></div><p class="muted" id="msg"></p>`;
+  if(online)h+=`<h3>Senhas</h3><p class="muted">Trocar as senhas mantém a partida. Quem estiver com o mapa aberto terá de digitar a senha nova.</p><div class="row"><label>Sala de Controle <input type="password" id="nC"></label></div><div class="row"><label>Gabinete Vermelho <input type="password" id="nV"></label></div><div class="row"><label>Gabinete Branco <input type="password" id="nB"></label></div><div class="row"><button class="sec" data-a="trocar">Trocar senhas</button></div><p class="muted">${esc(msgTroca)}</p>`}
  return h}
 function painelRegras(){
  if(!ctl())return `<h2>Como funciona</h2>
@@ -546,11 +547,11 @@ ${Object.entries(TRACOS).map(([t,d])=>`<p><span class="tag tg">${t}</span> ${d}<
 function formSenha(){
  const n={V:'Gabinete Vermelho',B:'Gabinete Branco',C:'Sala de Controle'}[modo];
  if(FB&&modo==='C'&&!fbEmail)return `<h2>${n}</h2><p>A Sala de Controle exige o login com a conta Google de um diretor autorizado.</p><div class="row"><button data-a="google">Entrar com Google</button></div><p class="muted">${esc(msgSenha)}</p>`;
- if(modo==='C'&&!REM)return `<h2>Iniciar o mapa</h2><p>Este mapa ainda não foi iniciado. Defina as três senhas. Elas cifram os dados sigilosos: cada gabinete só enxerga os próprios números com a sua senha.</p>
+ if(modo==='C'&&(!REM||esq))return `<h2>${REM?'Reiniciar o mapa':'Iniciar o mapa'}</h2><p>${REM?'Sem a senha da Sala de Controle não há como abrir a partida atual. Reiniciar apaga a partida em andamento e recomeça do cenário padrão, com senhas novas.':'Este mapa ainda não foi iniciado. Defina as três senhas. Elas cifram os dados sigilosos: cada gabinete só enxerga os próprios números com a sua senha.'}</p>
  <div class="row"><label>Sala de Controle <input type="password" id="sC"></label></div><div class="row"><label>Gabinete Vermelho <input type="password" id="sV"></label></div><div class="row"><label>Gabinete Branco <input type="password" id="sB"></label></div>
- <div class="row"><button data-a="iniciar">Iniciar mapa</button></div><p class="muted">${esc(msgSenha)}</p><p class="muted">Anote as senhas: não há como recuperá-las.</p>`;
+ <div class="row"><button data-a="iniciar">${REM?'Apagar a partida e reiniciar':'Iniciar mapa'}</button>${REM?'<button class="sec" data-a="esq">Voltar</button>':''}</div><p class="muted">${esc(msgSenha)}</p><p class="muted">Anote as senhas: não há como recuperá-las.</p>`;
  if(!REM)return `<h2>${n}</h2><p>A Sala de Controle ainda não iniciou este mapa.</p>`;
- return `<h2>${n}</h2><p>Digite a senha para ver os dados sigilosos desta visão.</p><div class="row"><input type="password" id="senha"><button data-a="entrar">Entrar</button></div><p class="muted">${esc(msgSenha)}</p>`}
+ return `<h2>${n}</h2><p>Digite a senha para ver os dados sigilosos desta visão.</p><div class="row"><input type="password" id="senha"><button data-a="entrar">Entrar</button></div><p class="muted">${esc(msgSenha)}</p>${modo==='C'&&FB&&fbEmail?'<p class="muted"><a href="#" data-a="esq" style="color:var(--gold)">Esqueci a senha da Sala de Controle</a></p>':''}`}
 function render(){
  S=visao();cabecalho();desenhar();
  const precisa=online&&modo!=='P'&&(modo==='C'?!(chaves.C&&FULL):!SEC[modo]);
@@ -565,9 +566,13 @@ pane.addEventListener('click',async ev=>{
  if(k==='entrar'){const ok=await destravar(modo,document.getElementById('senha').value);msgSenha=ok?'':'Senha incorreta.';atualizar();return}
  if(k==='iniciar'){const v=['sC','sV','sB'].map(i=>document.getElementById(i).value);
   if(v.some(x=>x.length<4)||new Set(v).size<3){msgSenha='Use três senhas diferentes, com pelo menos 4 caracteres.';render();return}
-  msgSenha='';await iniciarMapa(v[0],v[1],v[2]);atualizar();return}
+  msgSenha='';if(esq){FULL=estadoInicial();esq=false;sel=null}await iniciarMapa(v[0],v[1],v[2]);atualizar();return}
+ if(k==='esq'){ev.preventDefault();esq=!esq;msgSenha='';render();return}
  if(k==='enviar'){await enviarOrdens(modo);return}
  if(!ctl())return;
+ if(k==='trocar'){const v=['nC','nV','nB'].map(i=>document.getElementById(i).value);
+  if(v.some(x=>x.length<4)||new Set(v).size<3){msgTroca='Use três senhas diferentes, com pelo menos 4 caracteres.';render();return}
+  await iniciarMapa(v[0],v[1],v[2]);msgTroca=stat==='Sincronizado'?'Senhas trocadas. Avise as novas aos gabinetes; as ordens já enviadas neste turno precisam ser reenviadas.':'Não foi possível gravar as senhas novas.';render();return}
  if(k==='aplicarOrd'){for(const l of['V','B']){const d=DECORD[l];if(!d||d.turno!==S.turno)continue;let n=0;S.ex.filter(e=>e.lado===l).forEach(e=>{const o=d.ex[e.id];if(!o)return;let p=o.post;if(p==='Avançar'&&(++n>S.ofensivas||!o.alvo))p='Defender';if(p==='Transferir'&&!o.alvo)p='Defender';e.post=p;e.alvo=(p==='Avançar'||p==='Transferir')?o.alvo:'';e.estr=p==='Avançar'?(o.estr||''):'';e.feito=false})}S.log.unshift('Turno '+S.turno+' · Ordens dos gabinetes recebidas e aplicadas.')}
  if(k==='frente'){const e=S.ex.find(x=>x.id===a.dataset.e);if(e&&S.reg[e.alvo].c!==S.reg[e.reg].c){RES.de=e.reg;RES.para=e.alvo;RES.ter=['rio','montanha','urbano'].includes(R(e.alvo).terreno);const d=exEm(e.alvo,S.reg[e.alvo].c)[0];RES.ent=!!d&&d.post==='Defender';ULT=''}render();return}
  if(k==='ctrl'){const st=S.reg[sel];st.c=st.c==='V'?'B':st.c==='B'?'N':'V';st.p=0;st.s=null}
