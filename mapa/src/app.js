@@ -166,26 +166,35 @@ async function gravar(){if(escrevendo||!sujo||!FULL||!chaves.C)return;escrevendo
  try{const n=Date.now()+'-'+Math.random().toString(36).slice(2,8);meus.add(n);
   const d={n,salt:SALT,pub:JSON.stringify(mascara(FULL,null)),cV:await enc(segredo(FULL,'V'),chaves.V),cB:await enc(segredo(FULL,'B'),chaves.B),cC:await enc({S:FULL,senhas:{V:chaves.V,B:chaves.B}},chaves.C)};
   await ref.set(d);stat='Sincronizado'}
- catch(e){stat=e&&e.code==='invalid_argument'?'Sem permissão de escrita neste mapa':'Falha ao sincronizar'}
+ catch(e){stat=e&&e.code==='invalid_argument'?'Sem permissão de escrita neste mapa'+(fbEmail?' para '+fbEmail:''):'Falha ao sincronizar'}
  escrevendo=false;cabecalho();if(sujo)gravar()}
 function aoSnap(snap){REM=snap.exists?snap.data():null;
  if(!REM){PUB=null;stat='Mapa ainda não iniciado pela Sala de Controle';atualizar();return}
  try{PUB=JSON.parse(REM.pub)}catch(e){}
- SALT=REM.salt;if(stat!=='Sem permissão de escrita neste mapa')stat='Sincronizado';
+ SALT=REM.salt;if(!stat.startsWith('Sem permissão'))stat='Sincronizado';
  (async()=>{for(const l of['V','B'])if(chaves[l]){try{SEC[l]=await dec(REM['c'+l],chaves[l])}catch(e){SEC[l]=null}}
   if(chaves.C&&!meus.has(REM.n)&&!sujo&&!escrevendo){try{const o=await dec(REM.cC,chaves.C);FULL=o.S;chaves.V=o.senhas.V;chaves.B=o.senhas.B}catch(e){}}
   atualizar()})()}
 async function destravar(l,senha){if(!REM)return false;
  try{const o=await dec(REM['c'+l],senha);chaves[l]=senha;if(l==='C'){FULL=o.S;chaves.V=o.senhas.V;chaves.B=o.senhas.B}else SEC[l]=o;decOrd();return true}catch(e){return false}}
 async function iniciarMapa(sC,sV,sB){const a=new Uint8Array(16);crypto.getRandomValues(a);SALT=toB(a);chaves={C:sC,V:sV,B:sB};sujo=true;await gravar();decOrd()}
+let FB=null,fbEmail='';
+function ligar(db){
+ try{ref=db.doc('mapa/estado')}catch(e){return}
+ dbh=db;['V','B'].forEach(l=>{try{db.doc('ordens/'+l).onSnapshot(s=>{REMORD[l]=s.exists?s.data():null;decOrd()},()=>{})}catch(e){}});
+ online=true;stat='Conectando…';atualizar();
+ const t=setTimeout(()=>{if(stat==='Conectando…'){stat='Sem resposta do servidor; exibindo o cenário padrão';cabecalho()}},10000);
+ ref.onSnapshot(s=>{clearTimeout(t);aoSnap(s)},e=>{clearTimeout(t);stat='Sincronização indisponível';cabecalho()})}
+function bancoFirebase(){ // mesma interface do banco do Claude, sobre o Firestore
+ firebase.initializeApp(window.FIREBASE_CFG);FB=firebase;const fs=firebase.firestore(),au=firebase.auth();
+ au.onAuthStateChanged(u=>{fbEmail=(u&&u.email)||'';if(!u)au.signInAnonymously().catch(()=>{});render()});
+ return{doc:p=>{const r=fs.doc(p);return{
+  set:d=>r.set(d).catch(e=>{throw{code:e&&e.code==='permission-denied'?'invalid_argument':'unavailable'}}),
+  onSnapshot:(n,er)=>r.onSnapshot(s=>n({exists:s.exists,data:()=>s.data()}),()=>er&&er({code:'unavailable'}))}}}}
 function conectar(){
- if(!(window.claude&&window.claude.use)||!(window.crypto&&crypto.subtle))return;
- window.claude.use('db').then(db=>{if(!db)return;
-  try{ref=db.doc('mapa/estado')}catch(e){return}
-  dbh=db;['V','B'].forEach(l=>{try{db.doc('ordens/'+l).onSnapshot(s=>{REMORD[l]=s.exists?s.data():null;decOrd()},()=>{})}catch(e){}});
-  online=true;stat='Conectando…';atualizar();
-  const t=setTimeout(()=>{if(stat==='Conectando…'){stat='Sem resposta do servidor; exibindo o cenário padrão';cabecalho()}},10000);
-  ref.onSnapshot(s=>{clearTimeout(t);aoSnap(s)},e=>{clearTimeout(t);stat='Sincronização indisponível';cabecalho()})},()=>{})}
+ if(!(window.crypto&&crypto.subtle))return;
+ if(window.claude&&window.claude.use){window.claude.use('db').then(db=>{if(db)ligar(db)},()=>{});return}
+ if(window.firebase&&window.FIREBASE_CFG){try{ligar(bancoFirebase())}catch(e){}}}
 function atualizar(){S=visao();render()}
 
 // ---------- utilitários de jogo ----------
@@ -432,6 +441,7 @@ ${Object.entries(TRACOS).map(([t,d])=>`<p><span class="tag tg">${t}</span> ${d}<
 <p><b>Apoio à Guerra.</b> Região perdida −1; cidade-chave perdida −2; debandada −1; exército destruído −2; cidade-chave tomada +1.</p>`}
 function formSenha(){
  const n={V:'Gabinete Vermelho',B:'Gabinete Branco',C:'Sala de Controle'}[modo];
+ if(FB&&modo==='C'&&!fbEmail)return `<h2>${n}</h2><p>A Sala de Controle exige o login com a conta Google de um diretor autorizado.</p><div class="row"><button data-a="google">Entrar com Google</button></div><p class="muted">${esc(msgSenha)}</p>`;
  if(modo==='C'&&!REM)return `<h2>Iniciar o mapa</h2><p>Este mapa ainda não foi iniciado. Defina as três senhas. Elas cifram os dados sigilosos: cada gabinete só enxerga os próprios números com a sua senha.</p>
  <div class="row"><label>Sala de Controle <input type="password" id="sC"></label></div><div class="row"><label>Gabinete Vermelho <input type="password" id="sV"></label></div><div class="row"><label>Gabinete Branco <input type="password" id="sB"></label></div>
  <div class="row"><button data-a="iniciar">Iniciar mapa</button></div><p class="muted">${esc(msgSenha)}</p><p class="muted">Anote as senhas: não há como recuperá-las.</p>`;
@@ -447,6 +457,7 @@ function render(){
 pane.addEventListener('click',async ev=>{
  const go=ev.target.closest('[data-go]');if(go){ev.preventDefault();sel=go.dataset.go;render();return}
  const a=ev.target.closest('[data-a]');if(!a)return;const k=a.dataset.a;
+ if(k==='google'){msgSenha='';FB.auth().signInWithPopup(new FB.auth.GoogleAuthProvider()).catch(()=>{msgSenha='Não foi possível entrar com o Google.';render()});return}
  if(k==='entrar'){const ok=await destravar(modo,document.getElementById('senha').value);msgSenha=ok?'':'Senha incorreta.';atualizar();return}
  if(k==='iniciar'){const v=['sC','sV','sB'].map(i=>document.getElementById(i).value);
   if(v.some(x=>x.length<4)||new Set(v).size<3){msgSenha='Use três senhas diferentes, com pelo menos 4 caracteres.';render();return}

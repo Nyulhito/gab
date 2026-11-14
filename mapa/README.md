@@ -6,10 +6,18 @@ Mapa interativo do Gabinete (GAB) da PEMUN para a simulação da Guerra Civil Ru
 
 O mapa é um único arquivo, `index.html`. Basta abri-lo no navegador, ou publicar o repositório pelo GitHub Pages (Settings → Pages → Deploy from a branch → `main` / raiz).
 
-## Modo local e modo sincronizado
+## Sincronização em tempo real
 
-- **Fora do Claude (este repositório, GitHub Pages, arquivo aberto no computador):** o mapa roda em **modo local**. O estado fica salvo só no navegador de quem abriu. Não há tempo real, senhas de gabinete nem envio de ordens. Para levar a partida a outro aparelho, use a "Cópia de segurança" na aba Boletim da Sala de Controle.
-- **Dentro do Claude (artefato publicado):** o mapa sincroniza em tempo real, cifra os dados sigilosos com as senhas dos gabinetes e recebe as ordens de cada lado. A partida do comitê deve ser jogada por lá.
+A versão deste repositório sincroniza pelo Firebase (projeto `gab-pemun-mapa`, Firestore em São Paulo):
+
+- Qualquer pessoa com o link vê o mapa e as atualizações em tempo real.
+- Os gabinetes entram com a sua senha e enviam ordens; o login é anônimo e automático.
+- A Sala de Controle exige login com a conta Google de um diretor autorizado e a senha de controle. A lista de e-mails autorizados fica nas regras do Firestore (função `diretor()`), no console do Firebase.
+- Os dados sigilosos (Força, Moral, Apoio à Guerra, ordens) são cifrados no navegador com as senhas dos gabinetes antes de irem para o banco.
+
+Se o Firebase não puder ser alcançado, o mapa cai no **modo local**: o estado fica só no navegador de quem abriu.
+
+Para publicar: Settings → Pages → Deploy from a branch → `main` / raiz. O endereço fica `https://nyulhito.github.io/gab/mapa/`. O domínio `nyulhito.github.io` já está autorizado no login do Firebase.
 
 ## O que há no mapa
 
